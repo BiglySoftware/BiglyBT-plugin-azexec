@@ -25,6 +25,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.biglybt.core.tag.Tag;
 import com.biglybt.core.tag.TagManagerFactory;
@@ -248,17 +250,28 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		
 		String command_m = d.getTorrentFileName();
 		
-		String command = command_template;
-		command = command.replace("%F", command_f);
-		command = command.replace("%D", command_d);
-		command = command.replace("%N", command_n);
-		command = command.replace("%L", command_l);
-		command = command.replace("%T", command_t);
-		command = command.replace("%I", command_i);
-		command = command.replace("%K", command_k);
-		command = command.replace("%M", command_m);
+		List<String>	bits = new ArrayList<>();
+		
+		Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(command_template);
+		
+		while(m.find()){
+			
+		    String bit = m.group(1).replace("\"", "");
+		
+		    bit = bit.replace("%F", command_f);
+		    bit = bit.replace("%D", command_d);
+		    bit = bit.replace("%N", command_n);
+		    bit = bit.replace("%L", command_l);
+		    bit = bit.replace("%T", command_t);
+		    bit = bit.replace("%I", command_i);
+		    bit = bit.replace("%K", command_k);
+		    bit = bit.replace("%M", command_m);
 
-		final String command_to_run = command;
+		    bits.add( bit );
+		}
+		
+		final String[] command_to_run = bits.toArray( new String[ bits.size()]);
+		
 		plugin_interface.getUtilities().createThread(d.getName() + " exec", new Runnable() {
 			@Override
 			public void run() {
@@ -269,7 +282,7 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 						Runtime.getRuntime().exec(command_to_run);
 					}
 					else {
-						plugin_interface.getUtilities().createProcess(command_to_run);
+						plugin_interface.getUtilities().createProcess( null, command_to_run, null );
 					}
 				}
 				catch (Throwable t) {
