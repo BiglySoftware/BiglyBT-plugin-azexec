@@ -254,6 +254,8 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		
 		Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(command_template);
 		
+		String command_to_run_str = "";
+		
 		while(m.find()){
 			
 		    String bit = m.group(1).replace("\"", "");
@@ -267,26 +269,30 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		    bit = bit.replace("%K", command_k);
 		    bit = bit.replace("%M", command_m);
 
+		    command_to_run_str += (command_to_run_str.isEmpty()?"":" ") + bit;
+		    
 		    bits.add( bit );
 		}
 		
-		final String[] command_to_run = bits.toArray( new String[ bits.size()]);
+		final String f_command_to_run_str = command_to_run_str;
+		
+		final String[] command_to_run_array = bits.toArray( new String[ bits.size()]);
 		
 		plugin_interface.getUtilities().createThread(d.getName() + " exec", new Runnable() {
 			@Override
 			public void run() {
-				channel.log("Executing: " + command_to_run);
+				channel.log("Executing: \"" + f_command_to_run_str + "\"" );
 				boolean use_runtime_exec = use_runtime_exec_param.getValue();
 				try {
 					if (use_runtime_exec) {
-						Runtime.getRuntime().exec(command_to_run);
+						Runtime.getRuntime().exec(command_to_run_array);
 					}
 					else {
-						plugin_interface.getUtilities().createProcess( null, command_to_run, null );
+						plugin_interface.getUtilities().createProcess( null, command_to_run_array, null );
 					}
 				}
 				catch (Throwable t) {
-					channel.logAlert("Unable to run \"" + command_to_run + "\".", t);
+					channel.logAlert("Unable to run \"" + f_command_to_run_str + "\"", t);
 				}
 			}
 		});
