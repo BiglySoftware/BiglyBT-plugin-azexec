@@ -54,7 +54,9 @@ import com.biglybt.pif.ui.menus.MenuManager;
 import com.biglybt.pif.ui.model.BasicPluginConfigModel;
 import com.biglybt.pif.ui.model.BasicPluginViewModel;
 import com.biglybt.pifimpl.local.PluginCoreUtils;
+import com.biglybt.ui.swt.Utils;
 import com.biglybt.ui.swt.pif.UISWTInputReceiver;
+import com.sun.corba.se.impl.javax.rmi.CORBA.Util;
 
 public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuItemListener, MenuItemFillListener {
 	
@@ -322,20 +324,32 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 			commands[i] = ((Download)objs[i]).getAttribute(this.attr);
 		}
 		
-		chooseExecCommand(commands, new chooseExecCommandResults() {
-			@Override
-			public void execCommandChosen(String cmd) {
-				if (cmd == null) {return;} // No input.
-				if (cmd.length() == 0) {cmd = null;} // Blank input - remove the attr.
+			// hack - unfortunately for the fancy torrent menu if we run this immediately the UIInputReceiver grabs
+			// the menu as the active shell and this causes the receiver to immediately close when the menu closes.
+		
+		Utils.execSWTThreadLater(
+			10,
+			new Runnable()
+			{
+				@Override
+				public void run(){
 
-				// Set the attribute on all downloads.
-				for (int i=0; i<objs.length; i++) {
-					((Download)objs[i]).setAttribute(AzExecPlugin.this.attr, cmd);
+					chooseExecCommand(commands, new chooseExecCommandResults() {
+						@Override
+						public void execCommandChosen(String cmd) {
+							if (cmd == null) {return;} // No input.
+							if (cmd.length() == 0) {cmd = null;} // Blank input - remove the attr.
+			
+							// Set the attribute on all downloads.
+							for (int i=0; i<objs.length; i++) {
+								((Download)objs[i]).setAttribute(AzExecPlugin.this.attr, cmd);
+							}
+			
+							if (cmd != null) {updateChosenCommand(cmd);}
+						}
+					});
 				}
-
-				if (cmd != null) {updateChosenCommand(cmd);}
-			}
-		});
+			});
 
 	}
 
