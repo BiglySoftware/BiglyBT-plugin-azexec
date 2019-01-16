@@ -171,7 +171,7 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 			public void downloadAdded(Download d) {
 				if (!auto_set_enabled.getValue()) {return;}
 				if (d.isComplete()) {return;}
-				if (exec_cmd.length() == 0) {exec_cmd = null;}
+				if (exec_cmd != null && exec_cmd.length() == 0) {exec_cmd = null;}
 				d.setAttribute(attr, exec_cmd);
 			}
 			@Override
