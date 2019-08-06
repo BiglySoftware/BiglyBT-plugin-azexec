@@ -56,7 +56,6 @@ import com.biglybt.pif.ui.model.BasicPluginViewModel;
 import com.biglybt.pifimpl.local.PluginCoreUtils;
 import com.biglybt.ui.swt.Utils;
 import com.biglybt.ui.swt.pif.UISWTInputReceiver;
-import com.sun.corba.se.impl.javax.rmi.CORBA.Util;
 
 public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuItemListener, MenuItemFillListener {
 	
