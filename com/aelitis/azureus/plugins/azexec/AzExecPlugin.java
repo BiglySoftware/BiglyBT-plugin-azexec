@@ -28,10 +28,14 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.biglybt.core.download.DownloadManager;
 import com.biglybt.core.tag.Tag;
 import com.biglybt.core.tag.TagManagerFactory;
 import com.biglybt.core.tag.TagType;
+import com.biglybt.core.util.AERunnable;
+import com.biglybt.core.util.AsyncDispatcher;
 import com.biglybt.core.util.ByteFormatter;
+import com.biglybt.core.util.FileUtil;
 import com.biglybt.pif.Plugin;
 import com.biglybt.pif.PluginConfig;
 import com.biglybt.pif.PluginInterface;
@@ -69,6 +73,8 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	private BooleanParameter use_runtime_exec_param;
 	
 	private String exec_cmd;
+	
+	private AsyncDispatcher	dispatcher = new AsyncDispatcher();
 	
 	private final String history_attrib = "run_history";
 	
@@ -205,6 +211,35 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	
 	@Override
 	public void onCompletion(Download d) {
+		dispatcher.dispatch(AERunnable.create(()->{
+			_onCompletion(d);
+		}));
+	}
+	
+	private void _onCompletion(Download d) {
+		
+		DownloadManager dm = PluginCoreUtils.unwrap( d );
+		
+		try{
+			Thread.sleep( 5000 );	// give things time to get organised
+					
+			while( !dm.isDestroyed()){
+		
+				if ( dm.getMoveProgress() != null || FileUtil.hasTask( dm )){
+				
+					channel.log( "Waiting for " + dm.getDisplayName() + " to finish moving" );
+					
+					Thread.sleep( 5000 );
+					
+				}else{
+					
+					break;
+				}
+			}
+		}catch( Throwable e ){
+			
+		}
+
 		String command_template = d.getAttribute(attr);
 		if (command_template == null) {return;}
 		
