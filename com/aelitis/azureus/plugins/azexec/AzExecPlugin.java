@@ -63,6 +63,8 @@ import com.biglybt.ui.swt.pif.UISWTInputReceiver;
 
 public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuItemListener, MenuItemFillListener {
 	
+	private static Object KEY_FIRED = new Object();
+	
 	private BasicPluginViewModel model;
 	private LoggerChannel channel;
 	private PluginInterface plugin_interface;
@@ -70,6 +72,7 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	private TorrentAttribute attr;
 	private TorrentAttribute ta_cat;
 	private static int HISTORY_LIMIT = 15;
+	private BooleanParameter recheck_wait;
 	private BooleanParameter use_runtime_exec_param;
 	
 	private String exec_cmd;
@@ -99,9 +102,13 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		auto_set_label.setEnabled(false);
 		
 		ActionParameter auto_set_action = model.addActionParameter2("azexec.auto_set.action.label", "azexec.auto_set.action.exec");
-		ActionParameter auto_set_populate = model.addActionParameter2("azexec.auto_set.populate.label", "azexec.auto_set.populate.exec");		
+		ActionParameter auto_set_populate = model.addActionParameter2("azexec.auto_set.populate.label", "azexec.auto_set.populate.exec");
+		
+		recheck_wait = model.addBooleanParameter2("recheck_wait", "azexec.recheck.wait", false);
+
 		auto_set_enabled.addEnabledOnSelection(auto_set_action);
 		auto_set_enabled.addEnabledOnSelection(auto_set_populate);
+		auto_set_enabled.addEnabledOnSelection(recheck_wait);
 		
 		ConfigParameterListener cpl = new ConfigParameterListener() {
 			@Override
@@ -119,7 +126,9 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		cfg.getPluginParameter("auto_set_cmd").addConfigParameterListener(cpl);
 		cpl.configParameterChanged(null); // This will initialise the config text.
 		
-		model.createGroup("azexec.auto_set.group", new Parameter[] {auto_set_enabled, auto_set_label, auto_set_action, auto_set_populate});
+		model.createGroup(
+			"azexec.auto_set.group",
+			new Parameter[] {auto_set_enabled, auto_set_label, auto_set_action, auto_set_populate, recheck_wait});
 		
 		this.use_runtime_exec_param = model.addBooleanParameter2(
 				"use_runtime_exec", "azexec.config.use_runtime_exec", true);
@@ -155,7 +164,7 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		item_test.addListener(new MenuItemListener() {
 			@Override
 			public void selected(MenuItem item, Object context) {
-				onCompletion((Download)context);
+				onCompletion((Download)context, false);
 			}
 		});
 		
@@ -211,12 +220,16 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	
 	@Override
 	public void onCompletion(Download d) {
+		onCompletion( d, true );
+	}
+	
+	private void onCompletion(Download d, boolean auto ) {
 		dispatcher.dispatch(AERunnable.create(()->{
-			_onCompletion(d);
+			_onCompletion(d, auto);
 		}));
 	}
 	
-	private void _onCompletion(Download d) {
+	private void _onCompletion(Download d, boolean auto ) {
 		
 		DownloadManager dm = PluginCoreUtils.unwrap( d );
 		
@@ -236,10 +249,49 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 					break;
 				}
 			}
+			
+			if ( recheck_wait.getValue()){
+				
+				while( !dm.isDestroyed()){
+					
+					if ( d.isChecking()){
+					
+						channel.log( "Waiting for " + dm.getDisplayName() + " to finish checking" );
+						
+						Thread.sleep( 5000 );
+						
+					}else{
+						
+						break;
+					}
+				}
+			}
 		}catch( Throwable e ){
 			
 		}
 
+		if ( auto ){
+			
+			if ( !d.isComplete()){
+			
+				channel.log( dm.getDisplayName() + " is no longer complete, aborting" );
+				
+				return;
+			}
+			
+			synchronized( this ){
+				
+				if ( dm.getUserData( KEY_FIRED ) != null ){
+					
+					channel.log( dm.getDisplayName() + " has already been actioned, aborting" );
+					
+					return;
+				}
+				
+				dm.setUserData( KEY_FIRED, "" );
+			}
+		}
+		
 		String command_template = d.getAttribute(attr);
 		if (command_template == null) {return;}
 		
