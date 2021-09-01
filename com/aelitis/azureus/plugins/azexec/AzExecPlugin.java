@@ -25,6 +25,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +37,7 @@ import com.biglybt.core.util.AERunnable;
 import com.biglybt.core.util.AsyncDispatcher;
 import com.biglybt.core.util.ByteFormatter;
 import com.biglybt.core.util.FileUtil;
+import com.biglybt.core.util.GeneralUtils;
 import com.biglybt.pif.Plugin;
 import com.biglybt.pif.PluginConfig;
 import com.biglybt.pif.PluginInterface;
@@ -45,6 +47,7 @@ import com.biglybt.pif.config.PluginConfigSource;
 import com.biglybt.pif.download.Download;
 import com.biglybt.pif.download.DownloadCompletionListener;
 import com.biglybt.pif.download.DownloadManagerListener;
+import com.biglybt.pif.ipc.IPCException;
 import com.biglybt.pif.logging.LoggerChannel;
 import com.biglybt.pif.torrent.TorrentAttribute;
 import com.biglybt.pif.ui.UIInputReceiver;
@@ -60,6 +63,7 @@ import com.biglybt.pif.ui.model.BasicPluginViewModel;
 import com.biglybt.pifimpl.local.PluginCoreUtils;
 import com.biglybt.ui.swt.Utils;
 import com.biglybt.ui.swt.pif.UISWTInputReceiver;
+import com.sun.xml.internal.ws.util.StringUtils;
 
 public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuItemListener, MenuItemFillListener {
 	
@@ -229,6 +233,32 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		}));
 	}
 	
+		// support for plugin script invocation
+	
+	public Object
+	evalScript(
+		Map<String,Object>		args )
+	
+		throws IPCException
+	{
+		Download	download = (Download)args.get( "download" );
+		
+		String		script	= (String)args.get( "script" );
+		
+		script = script.trim();
+		
+		if ( script.length() > 2 && GeneralUtils.startsWithDoubleQuote( script ) && GeneralUtils.endsWithDoubleQuote(script)){
+			
+			script = script.substring( 1, script.length()-1 );
+			
+			script = script.trim();
+		}
+		
+		exec( download, script );
+		
+		return( null );
+	}
+	
 	private void _onCompletion(Download d, boolean auto ) {
 		
 		DownloadManager dm = PluginCoreUtils.unwrap( d );
@@ -295,6 +325,14 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		String command_template = d.getAttribute(attr);
 		if (command_template == null) {return;}
 		
+		exec( d, command_template );
+	}
+	
+	private void
+	exec(
+		Download		d,
+		String			command_template )
+	{
 		File save_path = new File(d.getSavePath());
 		String command_f, command_d, command_k, 
 		command_n = d.getName(), 
