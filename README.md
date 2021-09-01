@@ -15,3 +15,12 @@ The command supports the following variable expansions:
 * %I - Hex encoded info-hash
 * %K - Kind of torrent (single|multi)
 * %M - Full torrent file name
+
+## Example
+Say you want to execute a command when a completed download enters a stopped state. 
+
+Create a new Tag (e.g. go to View->Tags Overview and hit the 'Add Tag...' button top right). 
+
+Go to the settings for the Tag and set its constraint to "isComplete() && isStopped()" - make sure you do this BEFORE setting the Tag's "execute on assign" value unless you want to execute the command on all existing completed and stopped downloads...)
+
+Right-click on the Tag and select "Execute On Assign->Script" and then enter "plugin( azexec, command-to-run  )"
