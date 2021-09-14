@@ -369,16 +369,18 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		List<Download>	downloads,
 		String			command_template )
 	{
-		String command_all_p	= "";
-		String command_all_f	= "";
-		String command_all_d	= "";
-		String command_all_n	= "";
-		String command_all_l	= "";
-		String command_all_t	= "";
-		String command_all_i	= "";
-		String command_all_k	= "";
-		String command_all_m	= "";
-
+		int num_dl = downloads.size();
+		
+		List<String> command_all_p	= new ArrayList<>();
+		List<String> command_all_f	= new ArrayList<>();
+		List<String> command_all_d	= new ArrayList<>();
+		List<String> command_all_n	= new ArrayList<>();
+		List<String> command_all_l	= new ArrayList<>();
+		List<String> command_all_t	= new ArrayList<>();
+		List<String> command_all_i	= new ArrayList<>();
+		List<String> command_all_k	= new ArrayList<>();
+		List<String> command_all_m	= new ArrayList<>();
+		
 		for ( Download d: downloads ){
 			String command_p = d.getSavePath();
 			
@@ -427,45 +429,51 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 			
 			String command_m = d.getTorrentFileName();
 			
-			command_all_p	= append(command_all_p,command_p);
-			command_all_f	= append(command_all_f,command_f);
-			command_all_d	= append(command_all_d,command_d);
-			command_all_n	= append(command_all_n,command_n);
-			command_all_l	= append(command_all_l,command_l);
-			command_all_t	= append(command_all_t,command_t);
-			command_all_i	= append(command_all_i,command_i);
-			command_all_k	= append(command_all_k,command_k);
-			command_all_m	= append(command_all_m,command_m);
+			command_all_p.add( command_p );
+			command_all_f.add( command_f );
+			command_all_d.add( command_d );
+			command_all_n.add( command_n );
+			command_all_l.add( command_l );
+			command_all_t.add( command_t );
+			command_all_i.add( command_i );
+			command_all_k.add( command_k );
+			command_all_m.add( command_m );
 		}
 		
-		List<String>	bits = new ArrayList<>();
+		List<String>	args = new ArrayList<>();
 		
 		Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(command_template);
-		
-		String command_to_run_str = "";
-		
+				
 		while(m.find()){
 			
 		    String bit = m.group(1).replace("\"", "");
-		
-		    bit = bit.replace("%P", command_all_p);
-		    bit = bit.replace("%F", command_all_f);
-		    bit = bit.replace("%D", command_all_d);
-		    bit = bit.replace("%N", command_all_n);
-		    bit = bit.replace("%L", command_all_l);
-		    bit = bit.replace("%T", command_all_t);
-		    bit = bit.replace("%I", command_all_i);
-		    bit = bit.replace("%K", command_all_k);
-		    bit = bit.replace("%M", command_all_m);
-
-		    command_to_run_str += (command_to_run_str.isEmpty()?"":" ") + bit;
+				    
+		    bit = replaceVar( bit, "%P", command_all_p, args );
+		    bit = replaceVar( bit, "%F", command_all_f, args );
+		    bit = replaceVar( bit, "%D", command_all_d, args );
+		    bit = replaceVar( bit, "%N", command_all_n, args );
+		    bit = replaceVar( bit, "%L", command_all_l, args );
+		    bit = replaceVar( bit, "%T", command_all_t, args );
+		    bit = replaceVar( bit, "%I", command_all_i, args );
+		    bit = replaceVar( bit, "%K", command_all_k, args );
+		    bit = replaceVar( bit, "%M", command_all_m, args );
 		    
-		    bits.add( bit );
+		    if ( !bit.isEmpty()){
+		    	
+		    	args.add( bit );
+		    }
+		}
+		
+		String command_to_run_str = "";
+
+		for ( String arg: args ){
+			
+			command_to_run_str += ( command_to_run_str.isEmpty()?"":" ") + arg;
 		}
 		
 		final String f_command_to_run_str = command_to_run_str;
 		
-		final String[] command_to_run_array = bits.toArray( new String[ bits.size()]);
+		final String[] command_to_run_array = args.toArray( new String[ args.size()]);
 		
 		String thread_name;
 		
@@ -496,11 +504,48 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	}
 	
 	private String
-	append(
-		String	to,
-		String	s )
+	replaceVar(
+		String				bit,
+		String				var,
+		List<String>		vals,
+		List<String>		result )
 	{
-		return( to.isEmpty()?s:( to + " " + s ));
+		int 	val_num = vals.size();
+		
+		if ( bit.isEmpty() || val_num == 0 ){
+			
+			return( bit );
+			
+		}else if ( val_num == 1 ){
+			
+			return( bit.replace(var, vals.get(0)));
+			
+		}else{
+				// multi expand case - exactly quoted var means expand to 
+				// separate args, otherwise we expand to one arg with expanded values
+			
+			if ( bit.equals( var )){
+				
+				result.addAll( vals );
+				
+				return( "" );
+				
+			}else if ( bit.contains( var )){
+				
+				String str = "";
+				
+				for (String val: vals ){
+					
+					str += (str.isEmpty()?"":" ") + val;
+				}
+				
+				return( bit.replace( var, str ));
+				
+			}else{
+				
+				return( bit );
+			}
+		}
 	}
 	
 	@Override
