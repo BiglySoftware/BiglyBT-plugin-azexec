@@ -63,7 +63,6 @@ import com.biglybt.pif.ui.model.BasicPluginViewModel;
 import com.biglybt.pifimpl.local.PluginCoreUtils;
 import com.biglybt.ui.swt.Utils;
 import com.biglybt.ui.swt.pif.UISWTInputReceiver;
-import com.sun.xml.internal.ws.util.StringUtils;
 
 public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuItemListener, MenuItemFillListener {
 	
@@ -236,6 +235,35 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		// support for plugin script invocation
 	
 	public Object
+	evalBatchScript(
+		Map<String,Object>		args )
+	
+		throws IPCException
+	{
+		List<Download>	downloads = (List<Download>)args.get( "downloads" );
+		
+		if ( downloads == null ){
+			
+			return( evalScript( args ));
+		}
+		
+		String		script	= (String)args.get( "script" );
+		
+		script = script.trim();
+		
+		if ( script.length() > 2 && GeneralUtils.startsWithDoubleQuote( script ) && GeneralUtils.endsWithDoubleQuote(script)){
+			
+			script = script.substring( 1, script.length()-1 );
+			
+			script = script.trim();
+		}
+		
+		exec( downloads, script );
+		
+		return( null );
+	}
+	
+	public Object
 	evalScript(
 		Map<String,Object>		args )
 	
@@ -330,51 +358,85 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	
 	private void
 	exec(
-		Download		d,
+		Download	download,
+		String		command_template )
+	{
+		exec( Arrays.asList( download ), command_template );
+	}
+	
+	private void
+	exec(
+		List<Download>	downloads,
 		String			command_template )
 	{
-		File save_path = new File(d.getSavePath());
-		String command_f, command_d, command_k, 
-		command_n = d.getName(), 
-		command_l = d.getAttribute(ta_cat),
-		command_t = d.getTorrent().getAnnounceURL().getHost(), 
-		command_i = ByteFormatter.encodeString( d.getTorrent().getHash());
-		
-		if (command_l == null) {
+		String command_all_p	= "";
+		String command_all_f	= "";
+		String command_all_d	= "";
+		String command_all_n	= "";
+		String command_all_l	= "";
+		String command_all_t	= "";
+		String command_all_i	= "";
+		String command_all_k	= "";
+		String command_all_m	= "";
+
+		for ( Download d: downloads ){
+			String command_p = d.getSavePath();
 			
-			try{
-				List<Tag> tags = TagManagerFactory.getTagManager().getTagsForTaggable( TagType.TT_DOWNLOAD_MANUAL, PluginCoreUtils.unwrap( d ));
-				
-				if ( tags.size() > 0 ){
-					
-					String str = "";
-					
-					for (Tag t: tags ){
-						str += (str.length()==0?"":",") + t.getTagName( true );
-					}
-					
-					command_l = str;
-				}
-			}catch( Throwable e ){
-			}
+			File save_path = new File(command_p);
+						
+			String command_n = d.getName();
+			String command_l = d.getAttribute(ta_cat);
+			String command_t = d.getTorrent().getAnnounceURL().getHost(); 
+			String command_i = ByteFormatter.encodeString( d.getTorrent().getHash());
 			
 			if (command_l == null) {
-				command_l = "Uncategorised";
+				
+				try{
+					List<Tag> tags = TagManagerFactory.getTagManager().getTagsForTaggable( TagType.TT_DOWNLOAD_MANUAL, PluginCoreUtils.unwrap( d ));
+					
+					if ( tags.size() > 0 ){
+						
+						String str = "";
+						
+						for (Tag t: tags ){
+							str += (str.length()==0?"":",") + t.getTagName( true );
+						}
+						
+						command_l = str;
+					}
+				}catch( Throwable e ){
+				}
+				
+				if (command_l == null) {
+					command_l = "Uncategorised";
+				}
 			}
+			
+			String command_f, command_d, command_k;
+
+			if (d.getTorrent().isSimpleTorrent()) {
+				command_f = save_path.getName();
+				command_d = save_path.getParent();
+				command_k = "single";
+			}
+			else {
+				command_f = "";
+				command_d = save_path.getPath();
+				command_k = "multi";
+			}
+			
+			String command_m = d.getTorrentFileName();
+			
+			command_all_p	= append(command_all_p,command_p);
+			command_all_f	= append(command_all_f,command_f);
+			command_all_d	= append(command_all_d,command_d);
+			command_all_n	= append(command_all_n,command_n);
+			command_all_l	= append(command_all_l,command_l);
+			command_all_t	= append(command_all_t,command_t);
+			command_all_i	= append(command_all_i,command_i);
+			command_all_k	= append(command_all_k,command_k);
+			command_all_m	= append(command_all_m,command_m);
 		}
-		
-		if (d.getTorrent().isSimpleTorrent()) {
-			command_f = save_path.getName();
-			command_d = save_path.getParent();
-			command_k = "single";
-		}
-		else {
-			command_f = "";
-			command_d = save_path.getPath();
-			command_k = "multi";
-		}
-		
-		String command_m = d.getTorrentFileName();
 		
 		List<String>	bits = new ArrayList<>();
 		
@@ -386,14 +448,15 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 			
 		    String bit = m.group(1).replace("\"", "");
 		
-		    bit = bit.replace("%F", command_f);
-		    bit = bit.replace("%D", command_d);
-		    bit = bit.replace("%N", command_n);
-		    bit = bit.replace("%L", command_l);
-		    bit = bit.replace("%T", command_t);
-		    bit = bit.replace("%I", command_i);
-		    bit = bit.replace("%K", command_k);
-		    bit = bit.replace("%M", command_m);
+		    bit = bit.replace("%P", command_all_p);
+		    bit = bit.replace("%F", command_all_f);
+		    bit = bit.replace("%D", command_all_d);
+		    bit = bit.replace("%N", command_all_n);
+		    bit = bit.replace("%L", command_all_l);
+		    bit = bit.replace("%T", command_all_t);
+		    bit = bit.replace("%I", command_all_i);
+		    bit = bit.replace("%K", command_all_k);
+		    bit = bit.replace("%M", command_all_m);
 
 		    command_to_run_str += (command_to_run_str.isEmpty()?"":" ") + bit;
 		    
@@ -404,7 +467,15 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 		
 		final String[] command_to_run_array = bits.toArray( new String[ bits.size()]);
 		
-		plugin_interface.getUtilities().createThread(d.getName() + " exec", new Runnable() {
+		String thread_name;
+		
+		if ( downloads.size() == 1 ){
+			thread_name = downloads.get(0).getName();
+		}else{
+			thread_name = "multi";
+		}
+		
+		plugin_interface.getUtilities().createThread(thread_name + " exec", new Runnable() {
 			@Override
 			public void run() {
 				channel.log("Executing: \"" + f_command_to_run_str + "\"" );
@@ -422,6 +493,14 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 				}
 			}
 		});
+	}
+	
+	private String
+	append(
+		String	to,
+		String	s )
+	{
+		return( to.isEmpty()?s:( to + " " + s ));
 	}
 	
 	@Override
