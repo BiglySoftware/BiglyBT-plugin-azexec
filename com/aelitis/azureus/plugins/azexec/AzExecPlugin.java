@@ -390,28 +390,32 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 			String command_l = d.getAttribute(ta_cat);
 			String command_t = d.getTorrent().getAnnounceURL().getHost(); 
 			String command_i = ByteFormatter.encodeString( d.getTorrent().getHash());
-			
-			if (command_l == null) {
+							
+			try{
+				List<Tag> tags = TagManagerFactory.getTagManager().getTagsForTaggable( TagType.TT_DOWNLOAD_MANUAL, PluginCoreUtils.unwrap( d ));
 				
-				try{
-					List<Tag> tags = TagManagerFactory.getTagManager().getTagsForTaggable( TagType.TT_DOWNLOAD_MANUAL, PluginCoreUtils.unwrap( d ));
+				if ( tags.size() > 0 ){
 					
-					if ( tags.size() > 0 ){
-						
-						String str = "";
-						
-						for (Tag t: tags ){
-							str += (str.length()==0?"":",") + t.getTagName( true );
-						}
+					String str = "";
+					
+					for (Tag t: tags ){
+						str += (str.length()==0?"":",") + t.getTagName( true );
+					}
+					
+					if ( command_l == null ){
 						
 						command_l = str;
+						
+					}else{
+						
+						command_l += "," + str;
 					}
-				}catch( Throwable e ){
 				}
-				
-				if (command_l == null) {
-					command_l = "Uncategorised";
-				}
+			}catch( Throwable e ){
+			}
+			
+			if (command_l == null) {
+				command_l = "Uncategorised";
 			}
 			
 			String command_f, command_d, command_k;
