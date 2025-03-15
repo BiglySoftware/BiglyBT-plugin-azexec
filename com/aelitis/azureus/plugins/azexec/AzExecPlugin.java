@@ -289,6 +289,13 @@ public class AzExecPlugin implements Plugin, DownloadCompletionListener, MenuIte
 	
 	private void _onCompletion(Download d, boolean auto ) {
 		
+		if ( 	d.getFlag( Download.FLAG_LIGHT_WEIGHT ) ||
+				d.getFlag( Download.FLAG_LOW_NOISE ) ||
+				d.getFlag( Download.FLAG_METADATA_DOWNLOAD )){
+			
+			return;
+		}
+		
 		DownloadManager dm = PluginCoreUtils.unwrap( d );
 		
 		try{
